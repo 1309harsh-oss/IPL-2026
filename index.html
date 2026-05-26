@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IPL Analytics Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #04050d;
+    --surface:   #0c0f1e;
+    --card:      #111527;
+    --border:    #1e2540;
+    --accent1:   #390ae4;   /* IPL gold */
+    --accent2:   #00c9ff;   /* electric blue */
+    --accent3:   #ff4d6d;   /* red */
+    --accent4:   #39d353;   /* green */
+    --text:      #e8eaf6;
+    --muted:     #6b7280;
+    --glow1:     rgba(245,166,35,0.18);
+    --glow2:     rgba(0,201,255,0.15);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Exo 2', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative;
+    padding: 2.5rem 3rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(135deg, #080b1a 0%, #0c0f1e 60%, #10152a 100%);
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 50% -20%, var(--glow1), transparent 70%);
+    pointer-events: none;
+  }
+  .header-content {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .ipl-badge {
+    display: flex;
+    align-items: center;
+    gap: .8rem;
+    background: linear-gradient(135deg, var(--accent1), #ff8c00);
+    border-radius: 12px;
+    padding: .6rem 1.2rem;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 700;
+    font-size: 1.4rem;
+    letter-spacing: .08em;
+    color: #000;
+    box-shadow: 0 0 24px var(--glow1);
+  }
+  .ipl-badge span { font-size: 1.8rem; }
+  .header-title h1 {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(1.6rem, 4vw, 2.6rem);
+    font-weight: 700;
+    letter-spacing: .04em;
+    background: linear-gradient(90deg, #fff 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .header-title p {
+    color: var(--muted);
+    font-size: .9rem;
+    font-weight: 300;
+    margin-top: .2rem;
+    letter-spacing: .06em;
+  }
+  .header-stats {
+    margin-left: auto;
+    display: flex;
+    gap: 1.4rem;
+    flex-wrap: wrap;
+  }
+  .hstat {
+    text-align: center;
+    padding: .5rem 1rem;
+    background: rgba(255,255,255,.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .hstat .val {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--accent1);
+  }
+  .hstat .lbl { font-size: .72rem; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    padding: 2rem 3rem 3rem;
+    display: grid;
+    gap: 1.8rem;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.6rem 1.8rem;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow .3s;
+  }
+  .card:hover { box-shadow: 0 0 30px rgba(0,201,255,.08); }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2), transparent);
+  }
+  .card-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .card-title .icon { font-size: 1.2rem; }
+  .card-subtitle { font-size: .8rem; color: var(--muted); margin-top: -.8rem; margin-bottom: 1.2rem; }
+
+  /* ── CHART WRAPPERS ── */
+  .chart-wrap { position: relative; height: 280px; }
+  .chart-wrap-tall { position: relative; height: 320px; }
+
+  /* ── TOSS CARD ── */
+  #tossCard { grid-column: 1; }
+
+  /* ── PHASE CARD ── */
+  #phaseCard { grid-column: 2; }
+
+  /* ── PLAYERS TABLE CARD ── */
+  #playersCard { grid-column: 1 / -1; }
+
+  /* ── INSIGHT CARD ── */
+  #insightCard { grid-column: 1 / -1; }
+
+  /* ── WIN % BADGES on toss chart ── */
+  .toss-badges {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 1rem;
+  }
+  .tbadge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .2rem;
+  }
+  .tbadge .pct {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+  }
+  .tbadge .lbl { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .tbadge.gold .pct { color: var(--accent1); }
+  .tbadge.blue .pct { color: var(--accent2); }
+
+  /* ── PLAYERS TABLE ── */
+  .players-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.4rem;
+  }
+  .player-table { width: 100%; border-collapse: collapse; }
+  .player-table thead th {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: .78rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: .4rem .6rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .player-table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,.03);
+    transition: background .2s;
+  }
+  .player-table tbody tr:hover { background: rgba(255,255,255,.04); }
+  .player-table tbody td {
+    padding: .65rem .6rem;
+    font-size: .88rem;
+  }
+  .rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    font-size: .72rem;
+    font-weight: 700;
+    font-family: 'Rajdhani', sans-serif;
+  }
+  .rank-1 { background: #f5a623; color: #000; }
+  .rank-2 { background: #c0c0c0; color: #000; }
+  .rank-3 { background: #cd7f32; color: #000; }
+  .rank-4, .rank-5 { background: var(--border); color: var(--text); }
+  .stat-val {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent1);
+  }
+  .stat-bar-wrap { display: flex; align-items: center; gap: .5rem; }
+  .stat-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2));
+    min-width: 4px;
+    transition: width .4s;
+  }
+  .section-label {
+    font-size: .78rem;
+    font-family: 'Rajdhani', sans-serif;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: .6rem;
+    font-weight: 600;
+  }
+
+  /* ── INSIGHT CARD ── */
+  .insight-box {
+    background: linear-gradient(135deg, rgba(245,166,35,.08), rgba(0,201,255,.06));
+    border: 1px solid rgba(245,166,35,.25);
+    border-radius: 12px;
+    padding: 1.2rem 1.6rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .insight-icon { font-size: 2rem; flex-shrink: 0; margin-top: .1rem; }
+  .insight-text {
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: #d1d5db;
+  }
+  .insight-text strong { color: var(--accent1); }
+
+  /* ── PHASE LEGEND ── */
+  .phase-legend {
+    display: flex;
+    gap: 1.2rem;
+    flex-wrap: wrap;
+    margin-top: .8rem;
+    font-size: .8rem;
+    color: var(--muted);
+  }
+  .phase-legend span { display: flex; align-items: center; gap: .3rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+  @media (max-width: 800px) {
+    main { grid-template-columns: 1fr; padding: 1rem; }
+    #tossCard, #phaseCard, #playersCard, #insightCard { grid-column: 1; }
+    .players-grid { grid-template-columns: 1fr; }
+    header { padding: 1.5rem 1.2rem; }
+    .header-stats { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════ HEADER ════════════════════════════════ -->
+<header>
+  <div class="header-content">
+    <div class="ipl-badge"><span>🏏</span>IPL</div>
+    <div class="header-title">
+      <h1>Analytics Intelligence Dashboard</h1>
+      <p>SEASONS 2007 – 2026 &nbsp;·&nbsp; 1,218 MATCHES &nbsp;·&nbsp; 289,674 DELIVERIES</p>
+    </div>
+    <div class="header-stats">
+      <div class="hstat"><div class="val">1218</div><div class="lbl">Matches</div></div>
+      <div class="hstat"><div class="val">19</div><div class="lbl">Seasons</div></div>
+      <div class="hstat"><div class="val">50.5%</div><div class="lbl">Toss→Win</div></div>
+      <div class="hstat"><div class="val">9050</div><div class="lbl">Kohli Runs</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════ MAIN ════════════════════════════════ -->
+<main>
+
+  <!-- CHART 1: TOSS WIN RATE -->
+  <div class="card" id="tossCard">
+    <div class="card-title"><span class="icon">🎲</span> Toss vs Match Outcome</div>
+    <p class="card-subtitle">Does winning the toss actually matter?</p>
+    <div class="chart-wrap">
+      <canvas id="tossChart"></canvas>
+    </div>
+    <div class="toss-badges">
+      <div class="tbadge gold">
+        <div class="pct">50.5%</div>
+        <div class="lbl">Toss Winners Win Rate</div>
+      </div>
+      <div class="tbadge blue">
+        <div class="pct">49.5%</div>
+        <div class="lbl">Toss Losers Win Rate</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHART 2: PHASE RUNS -->
+  <div class="card" id="phaseCard">
+    <div class="card-title"><span class="icon">📊</span> Phase-wise Run Rate</div>
+    <p class="card-subtitle">Avg runs/over: winners vs losers across all phases</p>
+    <div class="chart-wrap-tall">
+      <canvas id="phaseChart"></canvas>
+    </div>
+    <div class="phase-legend">
+      <span><span class="dot" style="background:var(--accent1)"></span>Winners</span>
+      <span><span class="dot" style="background:var(--accent3)"></span>Losers</span>
+      <span style="margin-left:auto;font-size:.72rem">Overs: PP=1-6 · Mid=7-15 · Death=16-20</span>
+    </div>
+  </div>
+
+  <!-- PLAYERS TABLE -->
+  <div class="card" id="playersCard">
+    <div class="card-title"><span class="icon">🌟</span> Hall of Stats — Top Performers (All Seasons)</div>
+    <div class="players-grid">
+
+      <!-- TOP BATTERS -->
+      <div>
+        <div class="section-label">🏏 Top 5 Batters by Runs</div>
+        <table class="player-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Batter</th>
+              <th>Runs</th>
+              <th>Share</th>
+            </tr>
+          </thead>
+          <tbody id="battersBody"></tbody>
+        </table>
+      </div>
+
+      <!-- TOP BOWLERS -->
+      <div>
+        <div class="section-label">🎯 Top 5 Bowlers by Wickets</div>
+        <table class="player-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Bowler</th>
+              <th>Wickets</th>
+              <th>Share</th>
+            </tr>
+          </thead>
+          <tbody id="bowlersBody"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- INSIGHT CARD -->
+  <div class="card" id="insightCard">
+    <div class="card-title"><span class="icon">💡</span> Surprise Finding</div>
+    <div class="insight-box">
+      <div class="insight-icon">⚡</div>
+      <div class="insight-text">
+        The data revealed a genuinely surprising fact: <strong>winning the toss offers almost zero advantage</strong> — toss winners win only <strong>50.5%</strong> of matches (virtually a coin flip), yet teams that out-score in the <strong>death overs (16–20)</strong> win at a dramatically higher rate, with winners averaging <strong>10.51 runs/over</strong> in that phase versus losers' <strong>8.73</strong> — a gap of <strong>1.78 runs/over</strong>, far larger than in any other phase. <em>Death-over dominance, not toss luck, is the real separator.</em>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ════════════════════════════════ SCRIPTS ════════════════════════════════ -->
+<script>
+/* ─── GLOBAL CHART DEFAULTS ─── */
+Chart.defaults.color = '#6b7280';
+Chart.defaults.font.family = "'Exo 2', sans-serif";
+
+const GOLD   = '#f5a623';
+const BLUE   = '#00c9ff';
+const RED    = '#ff4d6d';
+const GREEN  = '#39d353';
+const BORDER = '#1e2540';
+
+/* ─── DATA ─── */
+const tossData = {
+  winner:  { wins: 615,  total: 1218 },
+  loser:   { wins: 603,  total: 1218 }
+};
+
+const phaseData = {
+  labels: ['Powerplay\n(Overs 1–6)', 'Middle Overs\n(7–15)', 'Death Overs\n(16–20)'],
+  winners: [8.22, 8.17, 10.51],
+  losers:  [7.28, 7.22, 8.73]
+};
+
+const batters = [
+  { name: 'V Kohli',     runs: 9050 },
+  { name: 'RG Sharma',   runs: 7269 },
+  { name: 'S Dhawan',    runs: 6769 },
+  { name: 'DA Warner',   runs: 6567 },
+  { name: 'KL Rahul',    runs: 5680 }
+];
+
+const bowlers = [
+  { name: 'YS Chahal',   wkts: 229 },
+  { name: 'B Kumar',     wkts: 215 },
+  { name: 'SP Narine',   wkts: 203 },
+  { name: 'PP Chawla',   wkts: 192 },
+  { name: 'JJ Bumrah',   wkts: 189 }
+];
+
+/* ─── CHART 1: TOSS ─── */
+(function buildTossChart() {
+  const ctx = document.getElementById('tossChart').getContext('2d');
+
+  const winsW  = tossData.winner.wins;
+  const lossesW = tossData.winner.total - winsW;
+  const winsL  = tossData.loser.wins;
+  const lossesL = tossData.loser.total - winsL;
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Toss Winners', 'Toss Losers'],
+      datasets: [
+        {
+          label: 'Matches Won',
+          data: [winsW, winsL],
+          backgroundColor: [
+            'rgba(245,166,35,0.85)',
+            'rgba(0,201,255,0.85)'
+          ],
+          borderColor: [GOLD, BLUE],
+          borderWidth: 1.5,
+          borderRadius: 8,
+          borderSkipped: false,
+        },
+        {
+          label: 'Matches Lost',
+          data: [lossesW, lossesL],
+          backgroundColor: [
+            'rgba(245,166,35,0.18)',
+            'rgba(0,201,255,0.18)'
+          ],
+          borderColor: ['rgba(245,166,35,0.4)', 'rgba(0,201,255,0.4)'],
+          borderWidth: 1,
+          borderRadius: 8,
+          borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#9ca3af', font: { size: 11 }, usePointStyle: true, pointStyleWidth: 8 }
+        },
+        tooltip: {
+          backgroundColor: '#111527',
+          borderColor: BORDER,
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => {
+              const total = tossData.winner.total;
+              const pct = (ctx.parsed.y / total * 100).toFixed(1);
+              return ` ${ctx.dataset.label}: ${ctx.parsed.y} (${pct}%)`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          stacked: false,
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#9ca3af', font: { size: 12, weight: '600' } }
+        },
+        y: {
+          stacked: false,
+          beginAtZero: true,
+          max: 700,
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          ticks: { color: '#6b7280', font: { size: 11 } }
+        }
+      }
+    }
+  });
+})();
+
+/* ─── CHART 2: PHASE RUNS ─── */
+(function buildPhaseChart() {
+  const ctx = document.getElementById('phaseChart').getContext('2d');
+
+  const gradGold = ctx.createLinearGradient(0, 0, 0, 320);
+  gradGold.addColorStop(0, 'rgba(245,166,35,0.9)');
+  gradGold.addColorStop(1, 'rgba(245,166,35,0.3)');
+
+  const gradRed = ctx.createLinearGradient(0, 0, 0, 320);
+  gradRed.addColorStop(0, 'rgba(255,77,109,0.85)');
+  gradRed.addColorStop(1, 'rgba(255,77,109,0.25)');
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Powerplay\n(1–6)', 'Middle\n(7–15)', 'Death\n(16–20)'],
+      datasets: [
+        {
+          label: 'Winners avg runs/over',
+          data: phaseData.winners,
+          backgroundColor: gradGold,
+          borderColor: GOLD,
+          borderWidth: 1.5,
+          borderRadius: 8,
+          borderSkipped: false,
+        },
+        {
+          label: 'Losers avg runs/over',
+          data: phaseData.losers,
+          backgroundColor: gradRed,
+          borderColor: RED,
+          borderWidth: 1.5,
+          borderRadius: 8,
+          borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#9ca3af', font: { size: 11 }, usePointStyle: true, pointStyleWidth: 8 }
+        },
+        tooltip: {
+          backgroundColor: '#111527',
+          borderColor: BORDER,
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)} runs/over`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#9ca3af', font: { size: 11, weight: '600' } }
+        },
+        y: {
+          beginAtZero: true,
+          max: 13,
+          grid: { color: 'rgba(255,255,255,0.06)' },
+          ticks: {
+            color: '#6b7280',
+            font: { size: 11 },
+            callback: v => v.toFixed(1)
+          }
+        }
+      }
+    }
+  });
+})();
+
+/* ─── PLAYER TABLES ─── */
+(function buildTables() {
+  const maxRuns = batters[0].runs;
+  const maxWkts = bowlers[0].wkts;
+
+  const battersBody = document.getElementById('battersBody');
+  batters.forEach((p, i) => {
+    const barW = Math.round((p.runs / maxRuns) * 100);
+    battersBody.innerHTML += `
+      <tr>
+        <td><span class="rank-badge rank-${i+1}">${i+1}</span></td>
+        <td style="font-weight:600">${p.name}</td>
+        <td><span class="stat-val">${p.runs.toLocaleString()}</span></td>
+        <td>
+          <div class="stat-bar-wrap">
+            <div class="stat-bar" style="width:${barW}px; max-width:80px"></div>
+            <span style="font-size:.75rem;color:var(--muted)">${barW}%</span>
+          </div>
+        </td>
+      </tr>`;
+  });
+
+  const bowlersBody = document.getElementById('bowlersBody');
+  bowlers.forEach((p, i) => {
+    const barW = Math.round((p.wkts / maxWkts) * 100);
+    bowlersBody.innerHTML += `
+      <tr>
+        <td><span class="rank-badge rank-${i+1}">${i+1}</span></td>
+        <td style="font-weight:600">${p.name}</td>
+        <td><span class="stat-val">${p.wkts}</span></td>
+        <td>
+          <div class="stat-bar-wrap">
+            <div class="stat-bar" style="width:${barW}px; max-width:80px; background: linear-gradient(90deg, var(--accent2), var(--accent3))"></div>
+            <span style="font-size:.75rem;color:var(--muted)">${barW}%</span>
+          </div>
+        </td>
+      </tr>`;
+  });
+})();
+
+/* ─── ENTRANCE ANIMATION ─── */
+document.querySelectorAll('.card').forEach((card, i) => {
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(24px)';
+  card.style.transition = 'opacity .5s ease, transform .5s ease';
+  setTimeout(() => {
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+  }, 120 + i * 110);
+});
+</script>
+
+</body>
+</html>
